@@ -24,6 +24,8 @@ struct tobj{
 	struct tobj *next;
 };
 
+struct tobj *cloc;
+
 int isvowel(char c){
 	c = tolower(c);
 	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
@@ -83,9 +85,11 @@ int unlockf(struct tobj *t){
 }
 
 int gof(struct tobj *t){
-	if(t->state & CONTAINER){
+	if(t->type & CONTAINER){
 		cloc = t;
+		return 1;
 	}
+	return -1;
 }
 
 int lockf(struct tobj *t){
@@ -125,10 +129,10 @@ int main()
 {
 	struct tobj trash = {"trashcan", "tin", 0, 0, NULL, NULL};
 	struct tobj pen = {"pen", "ball-point", 0, 0, NULL, NULL};
-	struct tobj desk = {"desk", "waferboard", 0, 0, &pen, &trash};
+	struct tobj desk = {"desk", "waferboard", CONTAINER, 0, &pen, &trash};
 	struct tobj chair = {"chair", "wooden", 0, 0, NULL, &desk};
 	struct tobj bathroom = {"bathroom", "ugly, run-down", CONTAINER, 0, &chair, NULL};
-	struct tobj *cloc = &bathroom;
+	cloc = &bathroom;
 	using_history();
 	stifle_history(20);
 	while(1){
@@ -165,7 +169,7 @@ int main()
 				printf(noun == cloc ? "You are in " : "You are looking at ");
 				lookf(noun);
 			}
-			else if(tstrcmp(verbstr, "go")){
+			else if(tstrcmp(verbstr, "go") == 0){
 				gof(noun);
 			}
 			else if(tstrcmp(verbstr, "break") == 0){
