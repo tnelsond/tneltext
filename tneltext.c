@@ -82,6 +82,11 @@ int unlockf(struct tobj *t){
 	return 1;	
 }
 
+int gof(struct tobj *t){
+	if(t->state & CONTAINER){
+		cloc = t;
+	}
+}
 
 int lockf(struct tobj *t){
 	t->state |= LOCKED;
@@ -159,6 +164,9 @@ int main()
 			if(tstrcmp(verbstr, "look") == 0){
 				printf(noun == cloc ? "You are in " : "You are looking at ");
 				lookf(noun);
+			}
+			else if(tstrcmp(verbstr, "go")){
+				gof(noun);
 			}
 			else if(tstrcmp(verbstr, "break") == 0){
 				breakf(noun);
