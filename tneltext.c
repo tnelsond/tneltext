@@ -24,12 +24,23 @@ struct tobj{
 	struct tobj *next;
 };
 
+int isvowel(char c){
+	c = tolower(c);
+	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
+}
+
 void tprint(struct tobj *t){
-	puts(t->desc);
+	printf("%s %s %s.\n", t->state & BROKEN ? "a broken" : isvowel(t->desc[0]) ? "an" : "a", t->desc, t->name);
 }
 
 int lookf(struct tobj *t){
 	tprint(t);
+	return 1;	
+}
+
+int breakf(struct tobj *t){
+	t->state |= BROKEN;
+	printf("You broke the %s.\n", t->name);	
 	return 1;	
 }
 
@@ -45,38 +56,51 @@ int tstrcmp(char *a, char *b){
 
 int main()
 {
-	struct tobj chair = {"chair", "a wooden chair", 0, 0, NULL, NULL};
-	struct tobj bathroom = {"bathroom", "a dirty run-down bathroom", 0, 0, &chair, NULL};
+	struct tobj chair = {"chair", "wooden", 0, 0, NULL, NULL};
+	struct tobj bathroom = {"bathroom", "ugly run-down", 0, 0, &chair, NULL};
 	struct tobj *cloc = &bathroom;
 	using_history();
 	stifle_history(20);
 	while(1){
-		struct tobj *noun = &cloc;
+		int fail = 0;
+		struct tobj *noun = cloc;
 		char *verbstr = readline(">> ");
 		char *temp = verbstr;
 		char *nounstr = verbstr;
 		add_history(verbstr);
+
+		/* Blank out spaces and punctuation and set the noun as the last word */
 		while(*temp){
-			if(*temp == ' '){
+			if(!isalpha(*temp)){
 				*temp = '\0';
-				nounstr = temp + 1;
-			}
-			else if(ispunct(*temp)){
-				*temp = '\0';	
+				if(isalpha(*(temp + 1))){
+					nounstr = temp + 1;
+				}
 			}
 			++temp;
 		}
+
 		if(tstrcmp(nounstr, "chair") == 0){
 			noun = &chair;
 		}
+		else if(tstrcmp(nounstr, "bathroom") == 0){
+			noun = &bathroom;
+		}
 		else if(verbstr != nounstr){
-			printf("I don't see any ``%s'' here.", nounstr);
+			printf("I don't see ``%s'' here.\n", nounstr);
+			fail = 1;
 		}
-		if(tstrcmp(verbstr, "look") == 0){
-			lookf(noun);
-		}
-		else{
-			printf("Don't know how to ``%s.''\n", verbstr);
+		if(!fail){
+			if(tstrcmp(verbstr, "look") == 0){
+				lookf(noun);
+			}
+			else if(tstrcmp(verbstr, "break") == 0){
+				breakf(noun);
+			}
+			else{
+				printf("Don't know how to ``%s.''\n", verbstr);
+				fail = 1;
+			}
 		}
 		free(verbstr);
 	}
