@@ -211,7 +211,7 @@ struct tobj *tfind(struct tobj *t, struct tobj **prev, char *str){
 			}
 		}
 		*prev = t;
-		t = t->next;	
+		t = t->next;
 	}while(t);
 
 	return NULL;
@@ -250,19 +250,33 @@ int pickf(struct tobj *prev, struct tobj *t){
 	return 0;
 }
 
+int dropf(struct tobj *prev, struct tobj *t){
+	if(t->type & PICKABLE){
+		movef(prev, t, self.next);
+		printf("You dropped the %s.\n", t->name);
+		return 1;
+	}
+	printf("You can't drop that!\n");
+	return 0;
+}
+
 int main()
 {
 	/* {name, descr, type, state, child, next} */
 	struct tobj brokenleg = {"leg", "\b\b", 0, DESCR | BROKEN | LOCKED, NULL, NULL};
-	struct tobj broccoli = {"broccoli", "yummy", EDIBLE, 0, NULL, &brokenleg};
+	struct tobj broccoli = {"broccoli", "yummy", EDIBLE | PICKABLE, 0, NULL, &brokenleg};
 	self.child = &broccoli;
 	struct tobj trash = {"trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, NULL};
 	struct tobj pen = {"pen", "ball-point", PICKABLE, 0, NULL, NULL};
-	struct tobj desk = {"desk", "waferboard", CONTAINER | ROOM, 0, &pen, &trash};
-	struct tobj chair = {"chair", "wooden", 0, 0, NULL, &desk};
+	struct tobj desk = {"desk", "waferboard", CONTAINER | ROOM, 0, &pen, NULL};
+	struct tobj out2desk = {"desk", "waferboard", PORTAL, 0, &desk, &trash};
+	struct tobj desk2out = {"away", "", PORTAL, 0, NULL, NULL};
+	struct tobj chair = {"chair", "wooden", 0, 0, NULL, &out2desk};
 
 	/* Rooms */
 	struct tobj bathroom = {"bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
+	desk2out.child = &bathroom;
+	desk.next = &desk2out;
 	struct tobj kitchen = {"kitchen", "smelly", CONTAINER | ROOM | IN, 0, NULL, NULL};
 	struct tobj hallway = {"hallway", "dim, musty", CONTAINER | ROOM | IN, 0, NULL, NULL};
 	struct tobj bedroom = {"bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, NULL, NULL};
@@ -337,6 +351,10 @@ stifle_history(20);
 			verbstr = "go";
 			nounstr = "northwest";
 		}
+		else if(tstrequals(verbstr, 1, "away")){
+			verbstr = "go";
+			nounstr = "away";
+		}
 
 		noun = tfind(&self, &prev, nounstr);
 		if(noun == NULL){
@@ -366,6 +384,9 @@ stifle_history(20);
 			}
 			else if(tstrequals(verbstr, 2, "go", "travel")){
 				gof(noun);
+			}
+			else if(tstrequals(verbstr, 3, "drop", "leave", "abandon")){
+				dropf(prev, noun);
 			}
 			else if(tstrequals(verbstr, 5, "break", "smash", "kick", "punch", "headbutt")){
 				breakf(noun);
