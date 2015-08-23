@@ -96,14 +96,14 @@ void tprint(struct tobj *t, int printself, char *carryingstr){
 	}
 	
 	if(t->type & ROOM && next){
-		printf("Exits are:");
+		printf("Exits are: ");
 		do{
 			if(!next->next && next != t->next){
 				printf("and ");
 			}
-			printf(" %s,", next->name);
+			printf("%s, ", next->name);
 		}while((next = next->next));
-		printf("\b.\n");
+		printf("\b\b.\n");
 	}
 }
 
@@ -197,16 +197,18 @@ struct tobj *tfind(struct tobj *t, struct tobj **prev, char *str){
 		if(tstrcmp(str, t->name) == 0){
 			return t;
 		}
-		*prev = t;
-		struct tobj *ct = t->child;
-		if(ct){
-			do{
-				if(tstrcmp(str, ct->name) == 0){
-					return ct;
-				}
-				*prev = ct;
-				ct = ct->next;
-			}while(ct);
+		if(t->type ^ PORTAL){ /* Don't look for stuff that's through a portal */
+			*prev = t;
+			struct tobj *ct = t->child;
+			if(ct){
+				do{
+					if(tstrcmp(str, ct->name) == 0){
+						return ct;
+					}
+					*prev = ct;
+					ct = ct->next;
+				}while(ct);
+			}
 		}
 		*prev = t;
 		t = t->next;	
@@ -251,46 +253,100 @@ int pickf(struct tobj *prev, struct tobj *t){
 int main()
 {
 	/* {name, descr, type, state, child, next} */
-	struct tobj air = {"air", "invisible", 0, 0, NULL, NULL};
 	struct tobj brokenleg = {"leg", "\b\b", 0, DESCR | BROKEN | LOCKED, NULL, NULL};
 	struct tobj broccoli = {"broccoli", "yummy", EDIBLE, 0, NULL, &brokenleg};
 	self.child = &broccoli;
-	struct tobj trash = {"trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, &air};
+	struct tobj trash = {"trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, NULL};
 	struct tobj pen = {"pen", "ball-point", PICKABLE, 0, NULL, NULL};
 	struct tobj desk = {"desk", "waferboard", CONTAINER | ROOM, 0, &pen, &trash};
 	struct tobj chair = {"chair", "wooden", 0, 0, NULL, &desk};
+
+	/* Rooms */
 	struct tobj bathroom = {"bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
-	struct tobj kitchen = {"kitchen", "smelly", CONTAINER | ROOM | IN, 0, &trash, NULL};
-	struct tobj bath2kitch = {"north", "door to the", PORTAL, 0, &kitchen, NULL};
-	struct tobj kitch2bath = {"south", "door to the", PORTAL, 0, &bathroom, NULL};
-	bathroom.next = &bath2kitch;
-	kitchen.next = &kitch2bath;
+	struct tobj kitchen = {"kitchen", "smelly", CONTAINER | ROOM | IN, 0, NULL, NULL};
+	struct tobj hallway = {"hallway", "dim, musty", CONTAINER | ROOM | IN, 0, NULL, NULL};
+	struct tobj bedroom = {"bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, NULL, NULL};
+
+	/* Portals */
+	struct tobj bath2hall = {"north", "door to the", PORTAL, 0, &hallway, NULL};
+	struct tobj hall2bath = {"south", "door to the", PORTAL, 0, &bathroom, NULL};
+	struct tobj hall2kitch = {"north", "opening to the", PORTAL, 0, &kitchen, &hall2bath};
+	struct tobj hall2bedroom = {"east", "door to the", PORTAL, 0, &bedroom, &hall2kitch};
+	struct tobj kitch2hall = {"south", "opening to the", PORTAL, 0, &hallway, NULL};
+	struct tobj bed2hall = {"west", "door to the", PORTAL, 0, &hallway, NULL};
+	bathroom.next = &bath2hall;
+	kitchen.next = &kitch2hall;
+	hallway.next = &hall2bedroom;
+	bedroom.next = &bed2hall;
+
 	self.next = &bathroom;
+
 	using_history();
 stifle_history(20);
 	while(1){
 		int fail = 0;
 		struct tobj *prev = NULL;
 		struct tobj *noun = NULL;
-		char *verbstr = readline(">> ");
-		char *temp = verbstr;
+		char *input = readline(">> ");
+		char *verbstr = input;
 		char *nounstr = verbstr;
 		add_history(verbstr);
 
 		/* Blank out spaces and punctuation and set the noun as the last word */
-		while(*temp){
-			if(!isalpha(*temp)){
-				*temp = '\0';
-				if(isalpha(*(temp + 1))){
-					nounstr = temp + 1;
+		while(*input){
+			if(!isalpha(*input)){
+				*input = '\0';
+				if(isalpha(*(input + 1))){
+					nounstr = input + 1;
 				}
 			}
-			++temp;
+			++input;
 		}
+		input = verbstr; /* Restore input back to where it was */
+
+		/* Do basic substition for shortcut commands */
+		if(tstrequals(verbstr, 2, "n", "north")){
+			verbstr = "go";
+			nounstr = "north";
+		}
+		else if(tstrequals(verbstr, 2, "ne", "northeast")){
+			verbstr = "go";
+			nounstr = "northeast";
+		}
+		else if(tstrequals(verbstr, 2, "e", "east")){
+			verbstr = "go";
+			nounstr = "east";
+		}
+		else if(tstrequals(verbstr, 2, "se", "southeast")){
+			verbstr = "go";
+			nounstr = "southeast";
+		}
+		else if(tstrequals(verbstr, 2, "s", "south")){
+			verbstr = "go";
+			nounstr = "south";
+		}
+		else if(tstrequals(verbstr, 2, "sw", "southwest")){
+			verbstr = "go";
+			nounstr = "southwest";
+		}
+		else if(tstrequals(verbstr, 2, "w", "west")){
+			verbstr = "go";
+			nounstr = "west";
+		}
+		else if(tstrequals(verbstr, 2, "nw", "northwest")){
+			verbstr = "go";
+			nounstr = "northwest";
+		}
+
 		noun = tfind(&self, &prev, nounstr);
 		if(noun == NULL){
 			if(verbstr != nounstr){
-				printf("I don't see ``%s'' here.\n", nounstr);
+				if(tstrequals(verbstr, 2, "go", "travel")){
+					printf("I can't go ``%s'' here.\n", nounstr);
+				}
+				else{
+					printf("I don't see ``%s'' here.\n", nounstr);
+				}
 				fail = 1;
 			}
 			else{
@@ -328,7 +384,7 @@ stifle_history(20);
 				fail = 1;
 			}
 		}
-		free(verbstr);
+		free(input);
 	}
 	return 0;
 }
