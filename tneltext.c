@@ -28,6 +28,7 @@
 #define DESC  4
 
 struct tobj{
+	char *article;
 	char *name;
 	char *desc;
 	uint32_t type;
@@ -36,18 +37,44 @@ struct tobj{
 	struct tobj *next;
 };
 
-struct tobj self = {"self", "\b\b\b", CONTAINER, 0, NULL, NULL};
-struct tobj nothing = {"", "", CONTAINER, 0, NULL, NULL};
+struct tobj self = {"your", "self", "\b", CONTAINER, 0, NULL, NULL};
+struct tobj nothing = {"", "", "", CONTAINER, 0, NULL, NULL};
 
 int isvowel(char c){
 	c = tolower(c);
 	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
 }
 
+int tstrcmp(char *a, char *b){
+	while(*a && *b){
+		int cmp = tolower(*a++) - tolower(*b++);
+		if(cmp != 0){
+			return cmp;
+		}
+	}
+	return *a - *b;
+}
+
+/* Case insensitive */
+/* 1 means match, 0 means no matches */
+int tstrequals(char *a, int num, ...){
+	va_list valist;
+	va_start(valist, num);
+	while(num-- > 0){
+		if(tstrcmp(a, va_arg(valist, char *)) == 0){
+			va_end(valist);
+			return 1;
+		}
+	}
+	va_end(valist);
+	return 0;
+}
+
+
+
 /* Print description */
 void tdesc(struct tobj *t, int which){
-	/* Put indefinite article "a" */
-	printf("a");
+	printf("%s", t->article);
 
 	if(which & DESC){
 		int adj = 0;
@@ -62,50 +89,52 @@ void tdesc(struct tobj *t, int which){
 		}
 
 		/* Turn the indefinite article "a" into "an" if necessary */
-		if(adj == 0 && isvowel(t->desc[0])){
+		if(adj == 0 && tstrcmp(t->article, "a") == 0 && isvowel(t->desc[0])){
 			printf("n");
 		}
 		/* Description of object */
 		printf(" %s %s.\n", t->desc, t->name);
 	}
 	else{
-		if(isvowel(t->name[0])){
+		if(isvowel(t->name[0]) && tstrcmp(t->article, "a") == 0){
 			printf("n");
 		}
 		printf(" %s; ", t->name);
 	}
 }
 
-void tprint(struct tobj *t, int printself, char *carryingstr){
-	struct tobj *child = t->child;
-	struct tobj *next = t->next;
+void tprintsiblings(struct tobj *t, char *intro){
+	int count = 0;
+	if(t->type & INVISIBLE){
+		return;
+	}
+	printf("%s", intro);
+	do{
+		if(t->type & INVISIBLE){
+			break;
+		}
+		if(count && (!t->next || t->next->type & INVISIBLE)){
+			printf("and ");
+		}
+		tdesc(t, t->state);
+		++count;
+	}while((t = t->next));	
+	printf("\b\b.\n");
+}
 
+void tprint(struct tobj *t, int printself, char *intro){
 	/* Print itself */
 	if(printself){
 		tdesc(t, DESC);
 	}
 	
 	/* Print list of children */
-	if(child && t->type ^ PORTAL){
-		printf(carryingstr);
-		do{
-			if(!child->next && child != t->child){
-				printf("and ");
-			}
-			tdesc(child, child->state);
-		}while((child = child->next));	
-		printf("\b\b.\n");
+	if(t->child && t->type ^ PORTAL){
+		tprintsiblings(t->child, intro);
 	}
 	
-	if(t->type & ROOM && next){
-		printf("Exits are: ");
-		do{
-			if(!next->next && next != t->next){
-				printf("and ");
-			}
-			printf("%s, ", next->name);
-		}while((next = next->next));
-		printf("\b\b.\n");
+	if(t->type & ROOM && t->next){
+		tprintsiblings(t->next, "Exits are: ");
 	}
 }
 
@@ -157,31 +186,6 @@ void gof(struct tobj *t){
 void lockf(struct tobj *t){
 	t->state |= LOCKED;
 	printf("You locked the %s.\n", t->name);	
-}
-
-int tstrcmp(char *a, char *b){
-	while(*a && *b){
-		int cmp = tolower(*a++) - tolower(*b++);
-		if(cmp != 0){
-			return cmp;
-		}
-	}
-	return *a - *b;
-}
-
-/* Case insensitive */
-/* 1 means match, 0 means no matches */
-int tstrequals(char *a, int num, ...){
-	va_list valist;
-	va_start(valist, num);
-	while(num-- > 0){
-		if(tstrcmp(a, va_arg(valist, char *)) == 0){
-			va_end(valist);
-			return 1;
-		}
-	}
-	va_end(valist);
-	return 0;
 }
 
 /* Returns the tobj that has the same name as str and points prev to the tobj that's either a parent or an older sister node to the returned tobj */
@@ -270,33 +274,33 @@ void dropf(struct tobj *prev, struct tobj *t){
 int main()
 {
 	/* {name, desc, type, state, child, next} */
-	struct tobj brokenleg = {"leg", "\b\b", 0, DESC | BROKEN | LOCKED, NULL, NULL};
-	struct tobj broccoli = {"broccoli", "yummy", EDIBLE | PICKABLE, 0, NULL, &brokenleg};
+	struct tobj brokenleg = {"a", "leg", "\b\b", 0, DESC | BROKEN | LOCKED, NULL, NULL};
+	struct tobj broccoli = {"some", "broccoli", "yummy", EDIBLE | PICKABLE, 0, NULL, &brokenleg};
 	self.child = &broccoli;
-	struct tobj girlconv = {"hello", "Hello, creepy.", SPEECH | INVISIBLE, 0, NULL, NULL};
-	struct tobj girl = {"girl", "young", 0, 0, &girlconv, NULL};
-	struct tobj trash = {"trashcan", "tin", CONTAINER | PICKABLE | INVISIBLE, 0, NULL, NULL};
-	struct tobj pen = {"pen", "ball-point", PICKABLE, 0, NULL, NULL};
-	struct tobj desk = {"desk", "waferboard", CONTAINER | ROOM, 0, &pen, NULL};
-	struct tobj out2desk = {"desk", "waferboard", PORTAL, 0, &desk, &trash};
-	struct tobj desk2out = {"away", "", PORTAL, 0, NULL, NULL};
-	struct tobj chair = {"chair", "wooden", 0, 0, NULL, &out2desk};
+	struct tobj girlconv = {"\b", "hello", "Hello, creepy.", SPEECH | INVISIBLE, 0, NULL, NULL};
+	struct tobj girl = {"a", "girl", "young", 0, 0, &girlconv, NULL};
+	struct tobj trash = {"a", "trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, NULL};
+	struct tobj pen = {"a", "pen", "ball-point", PICKABLE, 0, NULL, NULL};
+	struct tobj desk = {"a", "desk", "waferboard", CONTAINER | ROOM, 0, &pen, NULL};
+	struct tobj out2desk = {"a", "desk", "waferboard", PORTAL, 0, &desk, &trash};
+	struct tobj desk2out = {"\b", "away", "", PORTAL, 0, NULL, NULL};
+	struct tobj chair = {"a", "chair", "wooden", 0, 0, NULL, &out2desk};
 
 	/* Rooms */
-	struct tobj bathroom = {"bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
+	struct tobj bathroom = {"a", "bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
 	desk2out.child = &bathroom;
 	desk.next = &desk2out;
-	struct tobj kitchen = {"kitchen", "smelly", CONTAINER | ROOM | IN, 0, NULL, NULL};
-	struct tobj hallway = {"hallway", "dim, musty", CONTAINER | ROOM | IN, 0, NULL, NULL};
-	struct tobj bedroom = {"bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, &girl, NULL};
+	struct tobj kitchen = {"a", "kitchen", "smelly", CONTAINER | ROOM | IN, 0, NULL, NULL};
+	struct tobj hallway = {"a", "hallway", "dim, musty", CONTAINER | ROOM | IN, 0, NULL, NULL};
+	struct tobj bedroom = {"a", "bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, &girl, NULL};
 
 	/* Portals */
-	struct tobj bath2hall = {"north", "door to the", PORTAL, 0, &hallway, NULL};
-	struct tobj hall2bath = {"south", "door to the", PORTAL, 0, &bathroom, NULL};
-	struct tobj hall2kitch = {"north", "opening to the", PORTAL, 0, &kitchen, &hall2bath};
-	struct tobj hall2bedroom = {"east", "door to the", PORTAL, 0, &bedroom, &hall2kitch};
-	struct tobj kitch2hall = {"south", "opening to the", PORTAL, 0, &hallway, NULL};
-	struct tobj bed2hall = {"west", "door to the", PORTAL, 0, &hallway, NULL};
+	struct tobj bath2hall = {"\b", "north", "door to the", PORTAL, 0, &hallway, NULL};
+	struct tobj hall2bath = {"\b", "south", "door to the", PORTAL, 0, &bathroom, NULL};
+	struct tobj hall2kitch = {"\b", "north", "opening to the", PORTAL, 0, &kitchen, &hall2bath};
+	struct tobj hall2bedroom = {"\b", "east", "door to the", PORTAL, 0, &bedroom, &hall2kitch};
+	struct tobj kitch2hall = {"\b", "south", "opening to the", PORTAL, 0, &hallway, NULL};
+	struct tobj bed2hall = {"\b", "west", "door to the", PORTAL, 0, &hallway, NULL};
 	bathroom.next = &bath2hall;
 	kitchen.next = &kitch2hall;
 	hallway.next = &hall2bedroom;
