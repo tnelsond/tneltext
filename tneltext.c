@@ -14,6 +14,7 @@
 #define EDIBLE 8
 #define ROOM 16
 #define IN 32
+#define PORTAL 64
 
 /* state */
 #define LOCKED 1
@@ -71,6 +72,7 @@ void tdescr(struct tobj *t, int which){
 
 void tprint(struct tobj *t, int printself, char *carryingstr){
 	struct tobj *child = t->child;
+	struct tobj *next = t->next;
 
 	/* Print itself */
 	if(printself){
@@ -78,7 +80,7 @@ void tprint(struct tobj *t, int printself, char *carryingstr){
 	}
 	
 	/* Print list of children */
-	if(child){
+	if(child && t->type ^ PORTAL){
 		printf(carryingstr);
 		do{
 			if(!child->next && child != t->child){
@@ -88,11 +90,22 @@ void tprint(struct tobj *t, int printself, char *carryingstr){
 		}while((child = child->next));	
 		printf("\b\b.\n");
 	}
+	
+	if(t->type & ROOM && next){
+		printf("Exits are:");
+		do{
+			if(!next->next && next != t->next){
+				printf("and ");
+			}
+			printf(" %s,", next->name);
+		}while((next = next->next));
+		printf("\b.\n");
+	}
 }
 
 int lookf(struct tobj *t){
 	if(t == self.next){
-		printf(self.next->state & IN ? "You are in " : "You are at ");
+		printf(self.next->type & IN ? "You are in " : "You are at ");
 	}
 	else{
 		printf("You are looking at ");
@@ -114,21 +127,30 @@ int breakf(struct tobj *t){
 
 
 int unlockf(struct tobj *t){
-	t->state &= ~LOCKED;
-	printf("You unlocked the %s.\n", t->name);	
-	return 1;	
+	if(t->state & LOCKED){
+		t->state &= ~LOCKED;
+		printf("You unlocked the %s.\n", t->name);	
+		return 1;	
+	}
+	printf("It's already unlocked!\n");
+	return 0;
 }
 
 int gof(struct tobj *t){
 	if(t->type & ROOM){
 		self.next = t;
-		lookf(t);
+		lookf(self.next);
 		return 1;
 	}
-	else{
-		printf("You can't go in there!\n");
+	else if(t->type & PORTAL){
+		if(t->child && t->child->type & ROOM){
+			self.next = t->child;
+			lookf(self.next);
+			return 1;
+		}
 	}
-	return -1;
+	printf("You can't go in there!\n");
+	return 0;
 }
 
 int lockf(struct tobj *t){
@@ -203,8 +225,12 @@ void movef(struct tobj *prev, struct tobj *target, struct tobj *dest){
 }
 
 int eatf(struct tobj *prev, struct tobj *t){
-	movef(prev, t, &nothing);
-	printf("You ate the %s.\n", t->name);
+	if(t->type & EDIBLE){
+		movef(prev, t, &nothing);
+		printf("You ate the %s.\n", t->name);
+		return 1;
+	}
+	printf("You can't eat that!\n");
 	return 0;
 }
 
@@ -212,24 +238,29 @@ int pickf(struct tobj *prev, struct tobj *t){
 	if(t->type & PICKABLE){
 		movef(prev, t, &self);
 		printf("You picked up the %s.\n", t->name);
+		return 1;
 	}
-	else{
-		printf("You can't pick that up!\n");
-		return -1;
-	}
+	printf("You can't pick that up!\n");
 	return 0;
 }
 
 int main()
 {
+	/* {name, descr, type, state, child, next} */
+	struct tobj air = {"air", "invisible", 0, 0, NULL, NULL};
 	struct tobj brokenleg = {"leg", "\b\b", 0, DESCR | BROKEN | LOCKED, NULL, NULL};
 	struct tobj broccoli = {"broccoli", "yummy", EDIBLE, 0, NULL, &brokenleg};
 	self.child = &broccoli;
-	struct tobj trash = {"trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, NULL};
+	struct tobj trash = {"trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, &air};
 	struct tobj pen = {"pen", "ball-point", PICKABLE, 0, NULL, NULL};
 	struct tobj desk = {"desk", "waferboard", CONTAINER | ROOM, 0, &pen, &trash};
 	struct tobj chair = {"chair", "wooden", 0, 0, NULL, &desk};
-	struct tobj bathroom = {"bathroom", "ugly, run-down", CONTAINER | ROOM, 0, &chair, NULL};
+	struct tobj bathroom = {"bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
+	struct tobj kitchen = {"kitchen", "smelly", CONTAINER | ROOM | IN, 0, &trash, NULL};
+	struct tobj bath2kitch = {"north", "door to the", PORTAL, 0, &kitchen, NULL};
+	struct tobj kitch2bath = {"south", "door to the", PORTAL, 0, &bathroom, NULL};
+	bathroom.next = &bath2kitch;
+	kitchen.next = &kitch2bath;
 	self.next = &bathroom;
 	using_history();
 stifle_history(20);
@@ -285,7 +316,7 @@ stifle_history(20);
 			else if(tstrequals(verbstr, 2, "lock", "bar")){
 				lockf(noun);
 			}
-			else if(tstrequals(verbstr, 4, "pick", "take", "steal", "pack")){
+			else if(tstrequals(verbstr, 5, "pick", "get", "take", "steal", "pack")){
 				pickf(prev, noun);
 			}
 			else{
