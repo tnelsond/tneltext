@@ -19,11 +19,13 @@
 #define ROOM 16
 #define IN 32
 #define PORTAL 64
+#define SPEECH 128
+#define INVISIBLE 256
 
 /* state */
 #define LOCKED 1
 #define BROKEN 2
-#define DESCR  4
+#define DESC  4
 
 struct tobj{
 	char *name;
@@ -43,11 +45,11 @@ int isvowel(char c){
 }
 
 /* Print description */
-void tdescr(struct tobj *t, int which){
+void tdesc(struct tobj *t, int which){
 	/* Put indefinite article "a" */
 	printf("a");
 
-	if(which & DESCR){
+	if(which & DESC){
 		int adj = 0;
 		/* Adjectives based off state */
 		if(t->state & LOCKED){
@@ -80,7 +82,7 @@ void tprint(struct tobj *t, int printself, char *carryingstr){
 
 	/* Print itself */
 	if(printself){
-		tdescr(t, DESCR);
+		tdesc(t, DESC);
 	}
 	
 	/* Print list of children */
@@ -90,7 +92,7 @@ void tprint(struct tobj *t, int printself, char *carryingstr){
 			if(!child->next && child != t->child){
 				printf("and ");
 			}
-			tdescr(child, child->state);
+			tdesc(child, child->state);
 		}while((child = child->next));	
 		printf("\b\b.\n");
 	}
@@ -107,7 +109,7 @@ void tprint(struct tobj *t, int printself, char *carryingstr){
 	}
 }
 
-int lookf(struct tobj *t){
+void lookf(struct tobj *t){
 	if(t == self.next){
 		printf(self.next->type & IN ? "You are in " : "You are at ");
 	}
@@ -120,47 +122,41 @@ int lookf(struct tobj *t){
 	else{
 		tprint(t, 1, "There is ");
 	}
-	return 1;	
 }
 
-int breakf(struct tobj *t){
+void breakf(struct tobj *t){
 	t->state |= BROKEN;
 	printf("You broke the %s.\n", t->name);	
-	return 1;	
 }
 
 
-int unlockf(struct tobj *t){
+void unlockf(struct tobj *t){
 	if(t->state & LOCKED){
 		t->state &= ~LOCKED;
 		printf("You unlocked the %s.\n", t->name);	
-		return 1;	
 	}
-	printf("It's already unlocked!\n");
-	return 0;
+	else{
+		printf("It's already unlocked!\n");
+	}
 }
 
-int gof(struct tobj *t){
+void gof(struct tobj *t){
 	if(t->type & ROOM){
 		self.next = t;
 		lookf(self.next);
-		return 1;
 	}
-	else if(t->type & PORTAL){
-		if(t->child && t->child->type & ROOM){
-			self.next = t->child;
-			lookf(self.next);
-			return 1;
-		}
+	else if(t->type & PORTAL && t->child && t->child->type & ROOM){
+		self.next = t->child;
+		lookf(self.next);
 	}
-	printf("You can't go in there!\n");
-	return 0;
+	else{
+		printf("You can't go in there!\n");
+	}
 }
 
-int lockf(struct tobj *t){
+void lockf(struct tobj *t){
 	t->state |= LOCKED;
 	printf("You locked the %s.\n", t->name);	
-	return 1;	
 }
 
 int tstrcmp(char *a, char *b){
@@ -230,43 +226,56 @@ void movef(struct tobj *prev, struct tobj *target, struct tobj *dest){
 	dest->child = target;
 }
 
-int eatf(struct tobj *prev, struct tobj *t){
+void eatf(struct tobj *prev, struct tobj *t){
 	if(t->type & EDIBLE){
 		movef(prev, t, &nothing);
 		printf("You ate the %s.\n", t->name);
-		return 1;
 	}
-	printf("You can't eat that!\n");
-	return 0;
+	else{
+		printf("You can't eat that!\n");
+	}
 }
 
-int pickf(struct tobj *prev, struct tobj *t){
+void talkf(struct tobj *t){
+	struct tobj *ct = t->child;
+	if(ct){
+		do{
+			if(ct->type & SPEECH){
+				printf("The %s says: ``%s''\n", t->name, ct->desc);
+			}
+		}while((ct = ct->next));
+	}
+}
+
+void pickf(struct tobj *prev, struct tobj *t){
 	if(t->type & PICKABLE){
 		movef(prev, t, &self);
 		printf("You picked up the %s.\n", t->name);
-		return 1;
 	}
-	printf("You can't pick that up!\n");
-	return 0;
+	else{
+		printf("You can't pick that up!\n");
+	}
 }
 
-int dropf(struct tobj *prev, struct tobj *t){
+void dropf(struct tobj *prev, struct tobj *t){
 	if(t->type & PICKABLE){
 		movef(prev, t, self.next);
 		printf("You dropped the %s.\n", t->name);
-		return 1;
 	}
-	printf("You can't drop that!\n");
-	return 0;
+	else{
+		printf("You can't drop that!\n");
+	}
 }
 
 int main()
 {
-	/* {name, descr, type, state, child, next} */
-	struct tobj brokenleg = {"leg", "\b\b", 0, DESCR | BROKEN | LOCKED, NULL, NULL};
+	/* {name, desc, type, state, child, next} */
+	struct tobj brokenleg = {"leg", "\b\b", 0, DESC | BROKEN | LOCKED, NULL, NULL};
 	struct tobj broccoli = {"broccoli", "yummy", EDIBLE | PICKABLE, 0, NULL, &brokenleg};
 	self.child = &broccoli;
-	struct tobj trash = {"trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, NULL};
+	struct tobj girlconv = {"hello", "Hello, creepy.", SPEECH | INVISIBLE, 0, NULL, NULL};
+	struct tobj girl = {"girl", "young", 0, 0, &girlconv, NULL};
+	struct tobj trash = {"trashcan", "tin", CONTAINER | PICKABLE | INVISIBLE, 0, NULL, NULL};
 	struct tobj pen = {"pen", "ball-point", PICKABLE, 0, NULL, NULL};
 	struct tobj desk = {"desk", "waferboard", CONTAINER | ROOM, 0, &pen, NULL};
 	struct tobj out2desk = {"desk", "waferboard", PORTAL, 0, &desk, &trash};
@@ -279,7 +288,7 @@ int main()
 	desk.next = &desk2out;
 	struct tobj kitchen = {"kitchen", "smelly", CONTAINER | ROOM | IN, 0, NULL, NULL};
 	struct tobj hallway = {"hallway", "dim, musty", CONTAINER | ROOM | IN, 0, NULL, NULL};
-	struct tobj bedroom = {"bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, NULL, NULL};
+	struct tobj bedroom = {"bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, &girl, NULL};
 
 	/* Portals */
 	struct tobj bath2hall = {"north", "door to the", PORTAL, 0, &hallway, NULL};
@@ -388,7 +397,10 @@ stifle_history(20);
 			else if(tstrequals(verbstr, 3, "drop", "leave", "abandon")){
 				dropf(prev, noun);
 			}
-			else if(tstrequals(verbstr, 5, "break", "smash", "kick", "punch", "headbutt")){
+			else if(tstrequals(verbstr, 3, "talk", "say", "speak")){
+				talkf(noun);
+			}
+			else if(tstrequals(verbstr, 6, "break", "smash", "kick", "punch", "headbutt", "kill")){
 				breakf(noun);
 			}
 			else if(tstrcmp(verbstr, "unlock") == 0){
