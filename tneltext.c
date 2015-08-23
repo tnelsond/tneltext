@@ -1,3 +1,7 @@
+/* tneltext - a simple text adventure engine in C */
+/* Written in 2015 by tnelsond tnelsond@gmail.com */
+/* You should have received a copy of the CC0 Public Domain Dedication along with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
