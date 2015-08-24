@@ -330,9 +330,9 @@ void tloop(int history)
 			verbstr = "go";
 			nounstr = "northwest";
 		}
-		else if(tstrequals(verbstr, 1, "away")){
+		else if(tstrequals(verbstr, 1, "out")){
 			verbstr = "go";
-			nounstr = "away";
+			nounstr = "out";
 		}
 
 		noun = tfind(&self, &prev, nounstr);

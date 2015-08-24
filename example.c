@@ -22,7 +22,7 @@ int main(int argc, char **argv){
 	struct tobj pen = {SINGULAR, "pen", "ball-point", PICKABLE, 0, NULL, NULL};
 	struct tobj desk = {SINGULAR, "desk", "waferboard", CONTAINER | ROOM, 0, &pen, NULL};
 	struct tobj out2desk = {SINGULAR, "desk", "waferboard", PORTAL, 0, &desk, &trash};
-	struct tobj desk2out = {NULL, "away", "", PORTAL, 0, NULL, NULL};
+	struct tobj desk2out = {OWDESC, "out", "way", PORTAL, 0, NULL, NULL};
 	struct tobj chair = {SINGULAR, "chair", "wooden", 0, 0, NULL, &out2desk};
 
 	/* Rooms */
