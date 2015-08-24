@@ -51,11 +51,22 @@ int tstrequals(char *a, int num, ...){
 	return 0;
 }
 
+void tinit(){
+	SINGULAR = "a";
+	OWDESC = "only";
+	PLURAL = "some";
+}
+
 /* Print description */
 void tdesc(struct tobj *t, int which){
-	printf("%s", t->article);
+	if(t->article != OWDESC){
+		printf("%s", t->article);
+	}
 
 	if(which & DESC){
+		if(t->article == OWDESC){
+			printf("a");
+		}
 		int adj = 0;
 		/* Adjectives based off state */
 		if(t->state & LOCKED){
@@ -68,14 +79,18 @@ void tdesc(struct tobj *t, int which){
 		}
 
 		/* Turn the indefinite article "a" into "an" if necessary */
-		if(adj == 0 && tstrcmp(t->article, "a") == 0 && isvowel(t->desc[0])){
+		if(adj == 0 && (t->article == SINGULAR || t->article == OWDESC) && isvowel(t->desc[0])){
 			printf("n");
 		}
 		/* Description of object */
 		printf(" %s %s.\n", t->desc, t->name);
 	}
 	else{
-		if(isvowel(t->name[0]) && tstrcmp(t->article, "a") == 0){
+		if(t->article == OWDESC){
+			printf("\b");
+		}
+		/* Turn the indefinite article "a" into "an" if necessary */
+		if((t->article == SINGULAR) && isvowel(t->name[0])){
 			printf("n");
 		}
 		printf(" %s; ", t->name);

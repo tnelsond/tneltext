@@ -31,6 +31,10 @@
 /* SPEECH state */
 #define S_DONE 1
 
+char *SINGULAR;
+char *PLURAL;
+char *OWDESC;
+
 struct tobj{
 	char *article;
 	char *name;
@@ -44,6 +48,7 @@ struct tobj{
 struct tobj self;
 struct tobj nothing;
 
+void tinit();
 void tobj_set(struct tobj *t, char *adj, char *name, char *desc, uint32_t type, uint32_t state, struct tobj *child, struct tobj *next);
 int isvowel(char c);
 int tstrcmp(char *a, char *b);

@@ -1,21 +1,29 @@
 #include "tneltext.h"
 
+#define portal(art, name, desc, from, to) \
+	do{\
+	struct tobj from##to = {art, name, desc, PORTAL, 0, &to, from.next};\
+	from.next = &from##to;\
+	}while(0)
+
 int main(int argc, char **argv){
-	 tobj_set(&self, "your", "self", "\b", CONTAINER, 0, NULL, NULL);
-	 tobj_set(&nothing, "", "", "\b", CONTAINER, 0, NULL, NULL);
+	tinit();
+
+	tobj_set(&self, "your", "self", "\b", CONTAINER, 0, NULL, NULL);
+	tobj_set(&nothing, "", "", "\b", CONTAINER, 0, NULL, NULL);
 /* {name, desc, type, state, child, next} */
-	struct tobj brokenleg = {"a", "leg", "\b\b", 0, DESC | BROKEN | LOCKED, NULL, NULL};
-	struct tobj broccoli = {"some", "broccoli", "yummy", EDIBLE | PICKABLE, 0, NULL, &brokenleg};
+ 	struct tobj brokenleg = {"your", "leg", "\b\b", 0, DESC | BROKEN | LOCKED, NULL, NULL};
+	struct tobj broccoli = {PLURAL, "broccoli", "yummy", EDIBLE | PICKABLE, 0, NULL, &brokenleg};
 	self.child = &broccoli;
-	struct tobj girlconv2 = {"\b", "leave", "Leave me alone.", SPEECH | INVISIBLE, 0, NULL, NULL};
-	struct tobj girlconv = {"\b", "hello", "Hello, creepy.", SPEECH | INVISIBLE | S_ONCE, 0, NULL, &girlconv2};
-	struct tobj girl = {"a", "girl", "young", 0, 0, &girlconv, NULL};
-	struct tobj trash = {"a", "trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, NULL};
-	struct tobj pen = {"a", "pen", "ball-point", PICKABLE, 0, NULL, NULL};
-	struct tobj desk = {"a", "desk", "waferboard", CONTAINER | ROOM, 0, &pen, NULL};
-	struct tobj out2desk = {"a", "desk", "waferboard", PORTAL, 0, &desk, &trash};
-	struct tobj desk2out = {"\b", "away", "", PORTAL, 0, NULL, NULL};
-	struct tobj chair = {"a", "chair", "wooden", 0, 0, NULL, &out2desk};
+	struct tobj girlconv2 = {NULL, "leave", "Leave me alone.", SPEECH | INVISIBLE, 0, NULL, NULL};
+	struct tobj girlconv = {NULL, "hello", "Hello, creepy.", SPEECH | INVISIBLE | S_ONCE, 0, NULL, &girlconv2};
+	struct tobj girl = {SINGULAR, "girl", "young", 0, 0, &girlconv, NULL};
+	struct tobj trash = {SINGULAR, "trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, NULL};
+	struct tobj pen = {SINGULAR, "pen", "ball-point", PICKABLE, 0, NULL, NULL};
+	struct tobj desk = {SINGULAR, "desk", "waferboard", CONTAINER | ROOM, 0, &pen, NULL};
+	struct tobj out2desk = {SINGULAR, "desk", "waferboard", PORTAL, 0, &desk, &trash};
+	struct tobj desk2out = {NULL, "away", "", PORTAL, 0, NULL, NULL};
+	struct tobj chair = {SINGULAR, "chair", "wooden", 0, 0, NULL, &out2desk};
 
 	/* Rooms */
 	struct tobj bathroom = {"a", "bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
@@ -26,17 +34,14 @@ int main(int argc, char **argv){
 	struct tobj bedroom = {"a", "bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, &girl, NULL};
 
 	/* Portals */
-	struct tobj bath2hall = {"\b", "north", "door to the", PORTAL, 0, &hallway, NULL};
-	struct tobj hall2bath = {"\b", "south", "door to the", PORTAL, 0, &bathroom, NULL};
-	struct tobj hall2kitch = {"\b", "north", "opening to the", PORTAL, 0, &kitchen, &hall2bath};
-	struct tobj hall2bedroom = {"\b", "east", "door to the", PORTAL, 0, &bedroom, &hall2kitch};
-	struct tobj kitch2hall = {"\b", "south", "opening to the", PORTAL, 0, &hallway, NULL};
-	struct tobj bed2hall = {"\b", "west", "door to the", PORTAL, 0, &hallway, NULL};
-	bathroom.next = &bath2hall;
-	kitchen.next = &kitch2hall;
-	hallway.next = &hall2bedroom;
-	bedroom.next = &bed2hall;
-
+	portal(OWDESC, "north", "door to the", bathroom, hallway);
+	portal(OWDESC, "south", "door to the", hallway, bathroom);
+	portal(OWDESC, "north", "opening to the", hallway, kitchen);
+	portal(OWDESC, "south", "opening to the", kitchen, hallway);
+	portal(OWDESC, "east", "door to the", hallway, bedroom);
+	portal(OWDESC, "west", "door to the", bedroom, hallway);
+	
+	/* Set starting room */
 	self.next = &bathroom;
 
 	tloop(20);	
