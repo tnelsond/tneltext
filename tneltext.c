@@ -2,43 +2,24 @@
 /* Written in 2015 by tnelsond tnelsond@gmail.com */
 /* You should have received a copy of the CC0 Public Domain Dedication along with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.*/
 
+#include "tneltext.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <ctype.h>
 #include <stdarg.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
 
-/* type */
-#define MOVABLE 1
-#define PICKABLE 2
-#define CONTAINER 4
-#define EDIBLE 8
-#define ROOM 16
-#define IN 32
-#define PORTAL 64
-#define SPEECH 128
-#define INVISIBLE 256
-
-/* state */
-#define LOCKED 1
-#define BROKEN 2
-#define DESC  4
-
-struct tobj{
-	char *article;
-	char *name;
-	char *desc;
-	uint32_t type;
-	uint32_t state;
-	struct tobj *child;
-	struct tobj *next;
-};
-
-struct tobj self = {"your", "self", "\b", CONTAINER, 0, NULL, NULL};
-struct tobj nothing = {"", "", "", CONTAINER, 0, NULL, NULL};
+void tobj_set(struct tobj *t, char *art, char *name, char *desc, uint32_t type, uint32_t state, struct tobj *child, struct tobj *next){
+	t->article = art;
+	t->name = name;
+	t->desc = desc;
+	t->type = type;
+	t->state = state;
+	t->child = child;
+	t->next = next;
+}
 
 int isvowel(char c){
 	c = tolower(c);
@@ -69,8 +50,6 @@ int tstrequals(char *a, int num, ...){
 	va_end(valist);
 	return 0;
 }
-
-
 
 /* Print description */
 void tdesc(struct tobj *t, int which){
@@ -179,7 +158,7 @@ void gof(struct tobj *t){
 		lookf(self.next);
 	}
 	else{
-		printf("You can't go in there!\n");
+		printf("You can't go there!\n");
 	}
 }
 
@@ -244,8 +223,12 @@ void talkf(struct tobj *t){
 	struct tobj *ct = t->child;
 	if(ct){
 		do{
-			if(ct->type & SPEECH){
+			if(ct->type & SPEECH && ct->state ^ S_DONE){
 				printf("The %s says: ``%s''\n", t->name, ct->desc);
+				if(ct->type & S_ONCE){
+					ct->state |= S_DONE;
+				}
+				break;
 			}
 		}while((ct = ct->next));
 	}
@@ -271,45 +254,13 @@ void dropf(struct tobj *prev, struct tobj *t){
 	}
 }
 
-int main()
+void tloop(int history)
 {
-	/* {name, desc, type, state, child, next} */
-	struct tobj brokenleg = {"a", "leg", "\b\b", 0, DESC | BROKEN | LOCKED, NULL, NULL};
-	struct tobj broccoli = {"some", "broccoli", "yummy", EDIBLE | PICKABLE, 0, NULL, &brokenleg};
-	self.child = &broccoli;
-	struct tobj girlconv = {"\b", "hello", "Hello, creepy.", SPEECH | INVISIBLE, 0, NULL, NULL};
-	struct tobj girl = {"a", "girl", "young", 0, 0, &girlconv, NULL};
-	struct tobj trash = {"a", "trashcan", "tin", CONTAINER | PICKABLE, 0, NULL, NULL};
-	struct tobj pen = {"a", "pen", "ball-point", PICKABLE, 0, NULL, NULL};
-	struct tobj desk = {"a", "desk", "waferboard", CONTAINER | ROOM, 0, &pen, NULL};
-	struct tobj out2desk = {"a", "desk", "waferboard", PORTAL, 0, &desk, &trash};
-	struct tobj desk2out = {"\b", "away", "", PORTAL, 0, NULL, NULL};
-	struct tobj chair = {"a", "chair", "wooden", 0, 0, NULL, &out2desk};
-
-	/* Rooms */
-	struct tobj bathroom = {"a", "bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
-	desk2out.child = &bathroom;
-	desk.next = &desk2out;
-	struct tobj kitchen = {"a", "kitchen", "smelly", CONTAINER | ROOM | IN, 0, NULL, NULL};
-	struct tobj hallway = {"a", "hallway", "dim, musty", CONTAINER | ROOM | IN, 0, NULL, NULL};
-	struct tobj bedroom = {"a", "bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, &girl, NULL};
-
-	/* Portals */
-	struct tobj bath2hall = {"\b", "north", "door to the", PORTAL, 0, &hallway, NULL};
-	struct tobj hall2bath = {"\b", "south", "door to the", PORTAL, 0, &bathroom, NULL};
-	struct tobj hall2kitch = {"\b", "north", "opening to the", PORTAL, 0, &kitchen, &hall2bath};
-	struct tobj hall2bedroom = {"\b", "east", "door to the", PORTAL, 0, &bedroom, &hall2kitch};
-	struct tobj kitch2hall = {"\b", "south", "opening to the", PORTAL, 0, &hallway, NULL};
-	struct tobj bed2hall = {"\b", "west", "door to the", PORTAL, 0, &hallway, NULL};
-	bathroom.next = &bath2hall;
-	kitchen.next = &kitch2hall;
-	hallway.next = &hall2bedroom;
-	bedroom.next = &bed2hall;
-
-	self.next = &bathroom;
-
 	using_history();
-stifle_history(20);
+	stifle_history(history);
+
+	lookf(self.next);
+
 	while(1){
 		int fail = 0;
 		struct tobj *prev = NULL;
@@ -373,10 +324,10 @@ stifle_history(20);
 		if(noun == NULL){
 			if(verbstr != nounstr){
 				if(tstrequals(verbstr, 2, "go", "travel")){
-					printf("I can't go ``%s'' here.\n", nounstr);
+					printf("You can't go ``%s'' here.\n", nounstr);
 				}
 				else{
-					printf("I don't see ``%s'' here.\n", nounstr);
+					printf("You don't see ``%s'' here.\n", nounstr);
 				}
 				fail = 1;
 			}
@@ -423,5 +374,4 @@ stifle_history(20);
 		}
 		free(input);
 	}
-	return 0;
 }
