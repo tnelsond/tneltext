@@ -26,12 +26,12 @@ int main(int argc, char **argv){
 	struct tobj chair = {SINGULAR, "chair", "wooden", 0, 0, NULL, &out2desk};
 
 	/* Rooms */
-	struct tobj bathroom = {"a", "bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
+	struct tobj bathroom = {SINGULAR, "bathroom", "ugly, run-down", CONTAINER | ROOM | IN, 0, &chair, NULL};
 	desk2out.child = &bathroom;
 	desk.next = &desk2out;
-	struct tobj kitchen = {"a", "kitchen", "smelly", CONTAINER | ROOM | IN, 0, NULL, NULL};
-	struct tobj hallway = {"a", "hallway", "dim, musty", CONTAINER | ROOM | IN, 0, NULL, NULL};
-	struct tobj bedroom = {"a", "bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, &girl, NULL};
+	struct tobj kitchen = {SINGULAR, "kitchen", "smelly", CONTAINER | ROOM | IN, 0, NULL, NULL};
+	struct tobj hallway = {SINGULAR, "hallway", "dim, musty", CONTAINER | ROOM | IN, 0, NULL, NULL};
+	struct tobj bedroom = {SINGULAR, "bedroom", "cold, bare", CONTAINER | ROOM | IN, 0, &girl, NULL};
 
 	/* Portals */
 	portal(OWDESC, "north", "door to the", bathroom, hallway);
