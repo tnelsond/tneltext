@@ -1,10 +1,8 @@
 #include "tneltext.h"
 
 #define portal(art, name, desc, from, to) \
-	do{\
 	struct tobj from##to = {art, name, desc, PORTAL, 0, &to, from.next};\
-	from.next = &from##to;\
-	}while(0)
+	from.next = &from##to;
 
 int main(int argc, char **argv){
 	tinit();
@@ -40,7 +38,7 @@ int main(int argc, char **argv){
 	portal(OWDESC, "south", "opening to the", kitchen, hallway);
 	portal(OWDESC, "east", "door to the", hallway, bedroom);
 	portal(OWDESC, "west", "door to the", bedroom, hallway);
-	
+
 	/* Set starting room */
 	self.next = &bathroom;
 
